@@ -38,7 +38,7 @@ import uk.co.deanwild.materialshowcaseview.target.ViewTarget;
 /**
  * Helper class to show a sequence of showcase views.
  */
-public class MaterialShowcaseView extends FrameLayout implements View.OnTouchListener, View.OnClickListener {
+public class MaterialShowcaseView extends FrameLayout implements View.OnClickListener {
 
     private Paint mEraser;
     private Target mTarget;
@@ -64,7 +64,7 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     private long mDelayInMillis = ShowcaseConfig.DEFAULT_DELAY;
     private boolean mSingleUse = false; // should display only once
     private PrefsManager mPrefsManager; // used to store state doe single use mode
-    List<IShowcaseListener> mListeners; // external listeners who want to observe when we show and dismiss
+    List<IShowcaseListener> mListeners = new ArrayList<>(); // external listeners who want to observe when we show and dismiss
     private UpdateOnGlobalLayout mLayoutListener;
     private IDetachedListener mDetachedListener;
 
@@ -96,14 +96,11 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
         // create our animation factory
         mAnimationFactory = new AnimationFactory();
 
-        mListeners = new ArrayList<>();
-
         // make sure we add a global layout listener so we can adapt to changes
         mLayoutListener = new UpdateOnGlobalLayout();
         getViewTreeObserver().addOnGlobalLayoutListener(mLayoutListener);
 
         // consume touch events
-        setOnTouchListener(this);
 
         mMaskColour = Color.parseColor(ShowcaseConfig.DEFAULT_MASK_COLOUR);
         setVisibility(INVISIBLE);
@@ -166,13 +163,20 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
     }
 
     @Override
-    public boolean onTouch(View v, MotionEvent event) {
-        if (mDismissOnTouch) {
-            hide();
+    public boolean onTouchEvent(MotionEvent event) {
+        final int action = event.getAction();
+        switch (action) {
+            case MotionEvent.ACTION_DOWN:
+                return true;
+            case MotionEvent.ACTION_UP:
+                if (mDismissOnTouch) {
+                    hide();
+                }
+                return true;
+            default:
+                return super.onTouchEvent(event);
         }
-        return true;
     }
-
 
     private void notifyOnDisplayed() {
         for (IShowcaseListener listener : mListeners) {
@@ -187,7 +191,6 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
             }
 
             mListeners.clear();
-            mListeners = null;
         }
 
         /**
@@ -676,13 +679,16 @@ public class MaterialShowcaseView extends FrameLayout implements View.OnTouchLis
 
     public void fadeOut() {
 
-        mAnimationFactory.fadeOutView(this, mFadeDurationInMillis, new IAnimationFactory.AnimationEndListener() {
-            @Override
-            public void onAnimationEnd() {
-                setVisibility(INVISIBLE);
-                removeFromWindow();
-            }
-        });
+        if (mAnimationFactory != null) {
+
+            mAnimationFactory.fadeOutView(this, mFadeDurationInMillis, new IAnimationFactory.AnimationEndListener() {
+                @Override
+                public void onAnimationEnd() {
+                    setVisibility(INVISIBLE);
+                    removeFromWindow();
+                }
+            });
+        }
     }
 
     public void resetSingleUse() {
